@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">YardHop</string>
+    <string name="tagline">Neighborhood Yard &amp; Garage Sales</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="nav_discover">Discover</string>
+    <string name="nav_map">Map</string>
+    <string name="nav_hop_list">Hop List</string>
+    <string name="nav_profile">Profile</string>
+    <string name="post_sale">Post Sale</string>
+    <string name="nearby_alerts_channel_name">Nearby Yard Sales</string>
+    <string name="nearby_alerts_channel_desc">Real-time notifications when a yard or garage sale opens near you.</string>
+</resources>

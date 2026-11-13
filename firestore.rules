@@ -1,0 +1,255 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidLat(lat) {
+      return (lat is float || lat is int) && lat >= -90.0 && lat <= 90.0;
+    }
+
+    function isValidLng(lng) {
+      return (lng is float || lng is int) && lng >= -180.0 && lng <= 180.0;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUserSettings(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.alertsEnabled is bool &&
+             data.alertRadiusMiles is int && data.alertRadiusMiles >= 1 && data.alertRadiusMiles <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('homeLat' in data) || isValidLat(data.homeLat)) &&
+             (!('homeLng' in data) || isValidLng(data.homeLng)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSavedSaleStop(data, saleId) {
+      return data.saleId is string && data.saleId == saleId && data.saleId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.addressLabel is string && data.addressLabel.size() >= 1 && data.addressLabel.size() <= 180 &&
+             isValidLat(data.latitude) &&
+             isValidLng(data.longitude) &&
+             data.visited is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidYardSale(data) {
+      return data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 &&
+             data.sellerName is string && data.sellerName.size() >= 1 && data.sellerName.size() <= 80 &&
+             (!('sellerPhotoUrl' in data) || (data.sellerPhotoUrl is string && data.sellerPhotoUrl.size() <= 500)) &&
+             data.title is string && data.title.size() >= 3 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 1000 &&
+             data.addressLabel is string && data.addressLabel.size() >= 3 && data.addressLabel.size() <= 180 &&
+             (!('neighborhood' in data) || (data.neighborhood is string && data.neighborhood.size() <= 80)) &&
+             isValidLat(data.latitude) &&
+             isValidLng(data.longitude) &&
+             data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 80 &&
+             data.hoursLabel is string && data.hoursLabel.size() >= 1 && data.hoursLabel.size() <= 80 &&
+             data.categories is list && data.categories.size() <= 8 &&
+             (data.categories.size() == 0 || (data.categories[0] is string && data.categories[0].size() <= 40)) &&
+             (!('priceRangeLabel' in data) || (data.priceRangeLabel is string && data.priceRangeLabel.size() <= 50)) &&
+             data.photoDataList is list && data.photoDataList.size() <= 3 &&
+             (data.photoDataList.size() == 0 || (data.photoDataList[0] is string && data.photoDataList[0].size() <= 200000)) &&
+             data.status in ['active', 'ended'] &&
+             data.visibility == 'public' &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSellerProfile(data, sellerId) {
+      return data.sellerId is string && data.sellerId == sellerId &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             (!('neighborhood' in data) || (data.neighborhood is string && data.neighborhood.size() <= 80)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 300)) &&
+             (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 500)) &&
+             data.ratingSum is int && data.ratingSum >= 0 &&
+             data.ratingCount is int && data.ratingCount >= 0 &&
+             data.ratingSum <= data.ratingCount * 5 &&
+             data.visibility == 'public' &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSellerReview(data, sellerId, reviewerId) {
+      return data.sellerId is string && data.sellerId == sellerId &&
+             data.reviewerId is string && data.reviewerId == reviewerId &&
+             data.reviewerName is string && data.reviewerName.size() >= 1 && data.reviewerName.size() <= 80 &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() <= 400 &&
+             data.visibility == 'public' &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- 1. Private User Preferences & PII ---
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'alertsEnabled', 'alertRadiusMiles', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'email', 'displayName', 'alertsEnabled', 'alertRadiusMiles', 'homeLat', 'homeLng', 'createdAt', 'updatedAt']) &&
+                       isValidUserSettings(incoming(), userId);
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserSettings(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'alertsEnabled', 'alertRadiusMiles', 'homeLat', 'homeLng', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      // User's private Hop List stops
+      match /saved_sales/{saleId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(saleId) &&
+                         request.auth.uid == userId &&
+                         incoming().keys().hasAll(['saleId', 'title', 'addressLabel', 'latitude', 'longitude', 'visited', 'createdAt']) &&
+                         incoming().keys().hasOnly(['saleId', 'title', 'addressLabel', 'latitude', 'longitude', 'visited', 'createdAt']) &&
+                         isValidSavedSaleStop(incoming(), saleId);
+
+        allow update: if isSignedIn() &&
+                         isValidId(saleId) &&
+                         request.auth.uid == userId &&
+                         isValidSavedSaleStop(incoming(), saleId) &&
+                         incoming().saleId == existing().saleId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['visited']);
+
+        allow delete: if isSignedIn() && isValidId(saleId) && request.auth.uid == userId;
+      }
+    }
+
+    // --- 2. Public Yard Sale Listings ---
+    match /sales/{saleId} {
+      allow get: if isSignedIn() && isValidId(saleId) && (existing().visibility == 'public' || existing().sellerId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().visibility == 'public' || existing().sellerId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(saleId) &&
+                       incoming().sellerId == request.auth.uid &&
+                       incoming().status == 'active' &&
+                       incoming().keys().hasAll(['sellerId', 'sellerName', 'title', 'description', 'addressLabel', 'latitude', 'longitude', 'dateLabel', 'hoursLabel', 'categories', 'photoDataList', 'status', 'visibility', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['sellerId', 'sellerName', 'sellerPhotoUrl', 'title', 'description', 'addressLabel', 'neighborhood', 'latitude', 'longitude', 'dateLabel', 'hoursLabel', 'categories', 'priceRangeLabel', 'photoDataList', 'status', 'visibility', 'createdAt', 'updatedAt']) &&
+                       isValidYardSale(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(saleId) &&
+                       isValidYardSale(incoming()) &&
+                       existing().sellerId == request.auth.uid &&
+                       existing().status == 'active' &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().visibility == existing().visibility &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Action: Edit listing details while active
+                         (incoming().status == 'active' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['sellerName', 'sellerPhotoUrl', 'title', 'description', 'addressLabel', 'neighborhood', 'latitude', 'longitude', 'dateLabel', 'hoursLabel', 'categories', 'priceRangeLabel', 'photoDataList', 'updatedAt'])) ||
+                         // Action: End sale (terminal state lock)
+                         (incoming().status == 'ended' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(saleId) && existing().sellerId == request.auth.uid;
+    }
+
+    // --- 3. Public Seller Trust Profiles & Community Reviews ---
+    match /sellers/{sellerId} {
+      allow get: if isSignedIn() && isValidId(sellerId) && (request.auth.uid == sellerId || resource == null || existing().visibility == 'public');
+      allow list: if isSignedIn() && existing().visibility == 'public';
+
+      allow create: if isSignedIn() &&
+                       isValidId(sellerId) &&
+                       request.auth.uid == sellerId &&
+                       incoming().ratingSum == 0 &&
+                       incoming().ratingCount == 0 &&
+                       incoming().keys().hasAll(['sellerId', 'displayName', 'ratingSum', 'ratingCount', 'visibility', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['sellerId', 'displayName', 'neighborhood', 'bio', 'avatarUrl', 'ratingSum', 'ratingCount', 'visibility', 'createdAt', 'updatedAt']) &&
+                       isValidSellerProfile(incoming(), sellerId);
+
+      allow update: if isSignedIn() &&
+                       isValidId(sellerId) &&
+                       isValidSellerProfile(incoming(), sellerId) &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().visibility == existing().visibility &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Tier 1: Seller edits their own profile fields (cannot touch rating counters)
+                         (request.auth.uid == sellerId &&
+                          incoming().ratingSum == existing().ratingSum &&
+                          incoming().ratingCount == existing().ratingCount &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'neighborhood', 'bio', 'avatarUrl', 'updatedAt'])) ||
+                         // Tier 2: Shopper atomically submits a new review in a batch write
+                         (request.auth.uid != sellerId &&
+                          !exists(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)) &&
+                          existsAfter(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)) &&
+                          incoming().ratingCount == existing().ratingCount + 1 &&
+                          incoming().ratingSum == existing().ratingSum + getAfter(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)).data.rating &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['ratingSum', 'ratingCount', 'updatedAt'])) ||
+                         // Tier 2: Shopper atomically updates their existing review in a batch write
+                         (request.auth.uid != sellerId &&
+                          exists(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)) &&
+                          existsAfter(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)) &&
+                          incoming().ratingCount == existing().ratingCount &&
+                          incoming().ratingSum == existing().ratingSum - get(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)).data.rating + getAfter(/databases/$(database)/documents/sellers/$(sellerId)/reviews/$(request.auth.uid)).data.rating &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['ratingSum', 'ratingCount', 'updatedAt']))
+                       );
+
+      allow delete: if false;
+
+      match /reviews/{reviewerId} {
+        allow get: if isSignedIn() && isValidId(reviewerId) && (request.auth.uid == reviewerId || (resource != null && existing().visibility == 'public'));
+        allow list: if isSignedIn() && existing().visibility == 'public';
+
+        allow create: if isSignedIn() &&
+                         isValidId(sellerId) &&
+                         isValidId(reviewerId) &&
+                         request.auth.uid == reviewerId &&
+                         request.auth.uid != sellerId &&
+                         exists(/databases/$(database)/documents/sellers/$(sellerId)) &&
+                         incoming().keys().hasAll(['sellerId', 'reviewerId', 'reviewerName', 'rating', 'comment', 'visibility', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['sellerId', 'reviewerId', 'reviewerName', 'rating', 'comment', 'visibility', 'createdAt', 'updatedAt']) &&
+                         isValidSellerReview(incoming(), sellerId, reviewerId);
+
+        allow update: if isSignedIn() &&
+                         isValidId(sellerId) &&
+                         isValidId(reviewerId) &&
+                         request.auth.uid == reviewerId &&
+                         request.auth.uid != sellerId &&
+                         isValidSellerReview(incoming(), sellerId, reviewerId) &&
+                         incoming().sellerId == existing().sellerId &&
+                         incoming().reviewerId == existing().reviewerId &&
+                         incoming().visibility == existing().visibility &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['reviewerName', 'rating', 'comment', 'updatedAt']);
+
+        allow delete: if false;
+      }
+    }
+  }
+}

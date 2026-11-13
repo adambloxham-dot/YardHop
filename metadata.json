@@ -1,0 +1,6 @@
+{
+  "name": "YardHop",
+  "description": "Local yard and garage sale discovery with geolocation, interactive map navigation, photo listings, nearby sale alerts, and community seller ratings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "Private user profile, PII, and nearby sale notification preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user." },
+        "email": { "type": "string", "description": "Private email address from sign-in provider." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "alertsEnabled": { "type": "boolean", "description": "Whether real-time nearby sale alerts are enabled." },
+        "alertRadiusMiles": { "type": "integer", "description": "Radius in miles for nearby sale alerts (1-100)." },
+        "homeLat": { "type": "number", "description": "Optional saved home latitude." },
+        "homeLng": { "type": "number", "description": "Optional saved home longitude." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "alertsEnabled", "alertRadiusMiles", "createdAt", "updatedAt"]
+    },
+    "SavedSaleStop": {
+      "title": "SavedSaleStop",
+      "description": "A yard sale bookmarked to the shopper's Hop List route.",
+      "type": "object",
+      "properties": {
+        "saleId": { "type": "string", "description": "Referenced sale document ID." },
+        "title": { "type": "string", "description": "Sale listing title." },
+        "addressLabel": { "type": "string", "description": "Display address of the sale." },
+        "latitude": { "type": "number", "description": "Sale latitude." },
+        "longitude": { "type": "number", "description": "Sale longitude." },
+        "visited": { "type": "boolean", "description": "Whether the shopper has visited this stop." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["saleId", "title", "addressLabel", "latitude", "longitude", "visited", "createdAt"]
+    },
+    "YardSale": {
+      "title": "YardSale",
+      "description": "Public yard or garage sale listing with geolocation, hours, categories, and compressed photo data.",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string", "description": "Firebase Auth UID of the seller." },
+        "sellerName": { "type": "string", "description": "Seller public display name." },
+        "sellerPhotoUrl": { "type": "string", "description": "Optional seller avatar URL." },
+        "title": { "type": "string", "description": "Yard sale headline." },
+        "description": { "type": "string", "description": "Details about items available." },
+        "addressLabel": { "type": "string", "description": "Street or cross-street address for shoppers." },
+        "neighborhood": { "type": "string", "description": "Neighborhood or area label." },
+        "latitude": { "type": "number", "description": "Sale latitude (-90 to 90)." },
+        "longitude": { "type": "number", "description": "Sale longitude (-180 to 180)." },
+        "dateLabel": { "type": "string", "description": "Sale date label." },
+        "hoursLabel": { "type": "string", "description": "Opening and closing hours." },
+        "categories": { "type": "array", "description": "Up to 8 category tags." },
+        "priceRangeLabel": { "type": "string", "description": "Optional typical price range." },
+        "photoDataList": { "type": "array", "description": "Up to 3 compressed image data URIs or URLs." },
+        "status": { "type": "string", "enum": ["active", "ended"], "description": "Current sale status." },
+        "visibility": { "type": "string", "enum": ["public"], "description": "Listing visibility." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": [
+        "sellerId",
+        "sellerName",
+        "title",
+        "description",
+        "addressLabel",
+        "latitude",
+        "longitude",
+        "dateLabel",
+        "hoursLabel",
+        "categories",
+        "photoDataList",
+        "status",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SellerProfile": {
+      "title": "SellerProfile",
+      "description": "Public seller trust profile without PII, holding aggregate community rating counters.",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string", "description": "Firebase Auth UID of the seller." },
+        "displayName": { "type": "string", "description": "Public seller name." },
+        "neighborhood": { "type": "string", "description": "Optional neighborhood label." },
+        "bio": { "type": "string", "description": "Short seller bio." },
+        "avatarUrl": { "type": "string", "description": "Optional profile avatar URL." },
+        "ratingSum": { "type": "integer", "description": "Sum of all received star ratings." },
+        "ratingCount": { "type": "integer", "description": "Total number of received reviews." },
+        "visibility": { "type": "string", "enum": ["public"], "description": "Profile visibility." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["sellerId", "displayName", "ratingSum", "ratingCount", "visibility", "createdAt", "updatedAt"]
+    },
+    "SellerReview": {
+      "title": "SellerReview",
+      "description": "Community star rating and feedback left by a shopper for a seller.",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string", "description": "Target seller UID." },
+        "reviewerId": { "type": "string", "description": "Reviewer UID." },
+        "reviewerName": { "type": "string", "description": "Reviewer display name." },
+        "rating": { "type": "integer", "description": "Star rating from 1 to 5." },
+        "comment": { "type": "string", "description": "Short review text." },
+        "visibility": { "type": "string", "enum": ["public"], "description": "Review visibility." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["sellerId", "reviewerId", "reviewerName", "rating", "comment", "visibility", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "Private user preferences, PII, and nearby notification radius."
+    },
+    "/users/{userId}/saved_sales/{saleId}": {
+      "schema": { "$ref": "#/entities/SavedSaleStop" },
+      "description": "User-private bookmarked yard sale stops for route navigation."
+    },
+    "/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/YardSale" },
+      "description": "Public yard and garage sale listings with coordinates and photos."
+    },
+    "/sellers/{sellerId}": {
+      "schema": { "$ref": "#/entities/SellerProfile" },
+      "description": "Public seller trust profiles and aggregate ratings."
+    },
+    "/sellers/{sellerId}/reviews/{reviewerId}": {
+      "schema": { "$ref": "#/entities/SellerReview" },
+      "description": "Shopper ratings and reviews for a seller."
+    }
+  }
+}
